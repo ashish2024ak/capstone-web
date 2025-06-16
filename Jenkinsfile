@@ -1,25 +1,46 @@
 pipeline {
     agent any
 
+    environment {
+        GIT_REPO   = 'https://github.com/ashish2024ak/capstone-web.git'
+        AWS_USER   = 'ubuntu'
+        AWS_IP     = 'YOUR_AWS_PUBLIC_IP'
+        AZURE_USER = 'azureuser'
+        AZURE_IP   = 'YOUR_AZURE_PUBLIC_IP'
+    }
+
     stages {
-        stage('Pull from GitHub') {
+        stage('Clone Repository') {
             steps {
-                echo 'GitHub repository already cloned.'
+                git "${GIT_REPO}"
             }
         }
 
         stage('Deploy to AWS') {
             steps {
-                sh 'sudo cp indexaws.html /var/www/html/index.html'
-                sh 'sudo systemctl restart nginx'
+                sh """
+                scp -o StrictHostKeyChecking=no index-aws.html ${AWS_USER}@${AWS_IP}:/tmp/index.html
+                ssh -o StrictHostKeyChecking=no ${AWS_USER}@${AWS_IP} 'sudo mv /tmp/index.html /var/www/html/index.html && sudo systemctl restart nginx'
+                """
             }
         }
 
         stage('Deploy to Azure') {
             steps {
-                sh 'scp -i ~/azure-key indexazure.html azureuser@52.190.23.107:/var/www/html/index.html'
-                sh 'ssh -i ~/azure-key azureuser@52.190.23.107 "sudo systemctl restart nginx"'
+                sh """
+                scp -o StrictHostKeyChecking=no index-azure.html ${AZURE_USER}@${AZURE_IP}:/tmp/index.html
+                ssh -o StrictHostKeyChecking=no ${AZURE_USER}@${AZURE_IP} 'sudo mv /tmp/index.html /var/www/html/index.html && sudo systemctl restart nginx'
+                """
             }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Deployment successful!'
+        }
+        failure {
+            echo '❌ Deployment failed!'
         }
     }
 }
